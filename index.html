@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
+<title>今天做什么</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Playfair+Display:wght@400;700&display=swap');
+:root{
+  --bg:#faf8f5;--sf:#fff;--sf2:#f3f0eb;--bd:#e8e4dd;
+  --tx:#2c2825;--tx2:#9a9490;--tx3:#c4bfb8;
+  --ac:#e07a5f;--acd:rgba(224,122,95,.1);
+  --gn:#6a994e;--gnd:rgba(106,153,78,.1);
+  --bl:#5b7bb4;--bld:rgba(91,123,180,.1);
+  --vi:#8b6caf;--vid:rgba(139,108,175,.1);
+  --yw:#d4a843;--ywd:rgba(212,168,67,.1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;-webkit-tap-highlight-color:transparent}
+input,button,select,textarea{font-family:inherit}
+input[type=text]:focus,textarea:focus{outline:none;border-color:var(--ac)}
+.app{max-width:560px;margin:0 auto;padding:28px 18px 120px}
+
+/* date header */
+.date-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.date-nav{display:flex;align-items:center;gap:8px}
+.nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--bd);background:var(--sf);color:var(--tx2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.nav-btn:hover{background:var(--sf2)}
+.nav-btn:active{transform:scale(.93)}
+.today-btn{padding:5px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--sf);color:var(--tx2);cursor:pointer;font-size:12px;transition:.15s}
+.today-btn:hover{background:var(--acd);color:var(--ac);border-color:var(--ac)}
+.date-text{text-align:right}
+.date-main{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--tx);line-height:1}
+.date-sub{font-size:12px;color:var(--tx2);margin-top:2px}
+
+/* greeting */
+.greeting{font-size:15px;color:var(--tx2);margin-bottom:20px;line-height:1.6}
+.greeting b{color:var(--tx);font-weight:500}
+
+/* role section */
+.role{margin-bottom:14px;border-radius:12px;background:var(--sf);border:1px solid var(--bd);overflow:hidden}
+.role-head{display:flex;align-items:center;padding:10px 14px;cursor:pointer;user-select:none;gap:8px;transition:background .15s}
+.role-head:hover{background:var(--sf2)}
+.role-icon{font-size:16px}
+.role-name{flex:1;font-size:14px;font-weight:600}
+.role-count{font-size:11px;color:var(--tx2);background:var(--sf2);padding:2px 8px;border-radius:10px}
+.role-body{padding:0 14px 10px}
+
+/* task */
+.task{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--sf2)}
+.task:last-child{border-bottom:none}
+.task-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--bd);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;background:var(--sf)}
+.task-check:hover{border-color:var(--gn)}
+.task-check.done{background:var(--gn);border-color:var(--gn);color:#fff}
+.task-text{flex:1;font-size:13px;line-height:1.5}
+.task-text.done{text-decoration:line-through;color:var(--tx3)}
+.task-del{width:22px;height:22px;border:none;background:none;color:var(--tx3);cursor:pointer;font-size:12px;border-radius:4px;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s}
+.task:hover .task-del{opacity:1}
+.task-del:hover{background:rgba(224,122,95,.1);color:var(--ac)}
+
+/* add task input */
+.add-task{display:flex;gap:6px;padding:8px 0 2px}
+.add-task input{flex:1;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--sf2);color:var(--tx);font-size:13px}
+.add-task button{padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+.add-task button:active{transform:scale(.95)}
+
+/* manage roles */
+.manage-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.mg-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--sf);color:var(--tx2);font-size:12px;cursor:pointer;transition:.15s}
+.mg-btn:hover{background:var(--acd);color:var(--ac);border-color:var(--ac)}
+.mg-btn.active{background:var(--acd);color:var(--ac);border-color:var(--ac)}
+
+/* add role form */
+.add-role-form{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.emoji-pick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.emoji-opt{width:32px;height:32px;border-radius:8px;border:1px solid var(--bd);background:var(--sf);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.emoji-opt:hover,.emoji-opt.sel{border-color:var(--ac);background:var(--acd)}
+.color-pick{display:flex;gap:6px;margin-bottom:8px}
+.color-opt{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s}
+.color-opt:hover,.color-opt.sel{border-color:var(--tx);transform:scale(1.15)}
+
+/* daily note */
+.note-section{margin-top:16px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:14px}
+.note-label{font-size:12px;color:var(--tx2);margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.note-area{width:100%;border:none;background:transparent;color:var(--tx);font-size:13px;line-height:1.6;resize:none;min-height:36px;outline:none}
+
+/* progress */
+.progress-bar{margin-bottom:16px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
+.prog-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;color:var(--tx2)}
+.prog-track{height:6px;background:var(--sf2);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:var(--gn);border-radius:3px;transition:width .3s}
+.prog-msg{font-size:11px;color:var(--tx2);margin-top:4px;text-align:right}
+
+/* toast */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--tx);color:var(--bg);padding:8px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:200;transition:.3s;pointer-events:none;opacity:0}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* empty day */
+.empty-day{text-align:center;padding:30px;color:var(--tx3);font-size:13px;line-height:1.8}
+
+@media(max-width:400px){.date-main{font-size:22px}.app{padding:20px 14px 120px}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- DATE NAV -->
+  <div class="date-bar">
+    <div class="date-nav">
+      <button class="nav-btn" onclick="goDay(-1)">‹</button>
+      <button class="nav-btn" onclick="goDay(1)">›</button>
+      <button class="today-btn" onclick="goToday()">今天</button>
+    </div>
+    <div class="date-text">
+      <div class="date-main" id="dateMain"></div>
+      <div class="date-sub" id="dateSub"></div>
+      <div id="clock" style="font-family:'Playfair Display',serif;font-size:15px;color:var(--tx2);margin-top:3px;letter-spacing:1px"></div>
+    </div>
+  </div>
+
+  <!-- GREETING -->
+  <div class="greeting" id="greeting"></div>
+
+  <!-- PROGRESS -->
+  <div class="progress-bar">
+    <div class="prog-info">
+      <span id="progLabel">今日进度</span>
+      <span id="progNum">0/0</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0"></div></div>
+    <div class="prog-msg" id="progMsg"></div>
+  </div>
+
+  <!-- MANAGE BAR -->
+  <div class="manage-bar">
+    <button class="mg-btn" id="addRoleBtn" onclick="toggleAddRole()">+ 添加角色</button>
+  </div>
+
+  <!-- ADD ROLE FORM -->
+  <div id="addRoleForm" class="add-role-form" style="display:none">
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:6px">选择图标</div>
+    <div class="emoji-pick" id="emojiPick"></div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:6px">选择颜色</div>
+    <div class="color-pick" id="colorPick"></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="text" class="add-task" id="roleNameInput" placeholder="角色名称" style="flex:1;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--sf2);color:var(--tx);font-size:13px">
+      <button onclick="addRole()" style="padding:7px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap">添加</button>
+    </div>
+  </div>
+
+  <!-- ROLES & TASKS -->
+  <div id="roleList"></div>
+
+  <!-- DAILY NOTE -->
+  <div class="note-section">
+    <div class="note-label">✏️ 今日一句话</div>
+    <textarea class="note-area" id="noteArea" placeholder="今天感觉怎么样？随便写一句..." oninput="saveNote()"></textarea>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SK='daily_board_v3';
+const WEEKDAYS=['周日','周一','周二','周三','周四','周五','周六'];
+const EMOJIS=['🏪','📱','📚','🏠','💪','🎨','✍️','🎮','💼','🎯','🧹','💰','🎵','📷','🧑‍💻','🌱'];
+const COLORS=['#e07a5f','#5b7bb4','#6a994e','#8b6caf','#d4a843','#4a9b8e','#c56183','#7a6352'];
+const DEFAULT_ROLES=[
+  {id:1,name:'秘海潮汐',icon:'🏪',color:'#e07a5f'},
+  {id:2,name:'内容运营',icon:'📱',color:'#5b7bb4'},
+  {id:3,name:'学习',icon:'📚',color:'#6a994e'},
+  {id:4,name:'生活',icon:'🏠',color:'#8b6caf'}
+];
+
+let D={roles:[],days:{}};
+let viewDate=todayStr();
+let selEmoji=EMOJIS[0],selColor=COLORS[0],showRoleForm=false;
+
+const $=id=>document.getElementById(id);
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function parseDate(s){const p=s.split('-');return new Date(p[0],p[1]-1,p[2])}
+function addDays(s,n){const d=parseDate(s);d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function isToday(s){return s===todayStr()}
+
+function load(){
+  try{
+    const s=localStorage.getItem(SK);
+    if(s){D=JSON.parse(s)}
+    else{D={roles:DEFAULT_ROLES.map(r=>({...r})),days:{}};save()}
+  }catch(e){D={roles:DEFAULT_ROLES.map(r=>({...r})),days:{}}}
+}
+function save(){try{localStorage.setItem(SK,JSON.stringify(D))}catch(e){}}
+function getDay(d){if(!D.days[d])D.days[d]={tasks:[],note:''};return D.days[d]}
+
+function toast(msg){
+  const t=$('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+// === DATE NAV ===
+function goDay(n){viewDate=addDays(viewDate,n);render()}
+function goToday(){viewDate=todayStr();render()}
+
+// === ROLES ===
+function toggleAddRole(){
+  showRoleForm=!showRoleForm;
+  $('addRoleForm').style.display=showRoleForm?'block':'none';
+  $('addRoleBtn').classList.toggle('active',showRoleForm);
+  if(showRoleForm)renderEmojiPick();
+}
+function renderEmojiPick(){
+  $('emojiPick').innerHTML=EMOJIS.map(e=>'<div class="emoji-opt'+(e===selEmoji?' sel':'')+'" onclick="selEmoji=\''+e+'\';renderEmojiPick()">'+e+'</div>').join('');
+  $('colorPick').innerHTML=COLORS.map(c=>'<div class="color-opt'+(c===selColor?' sel':'')+'" style="background:'+c+'" onclick="selColor=\''+c+'\';renderEmojiPick()"></div>').join('');
+}
+function addRole(){
+  const name=($('roleNameInput').value||'').trim();
+  if(!name){toast('请输入角色名称');return}
+  D.roles.push({id:Date.now(),name,icon:selEmoji,color:selColor});
+  save();$('roleNameInput').value='';showRoleForm=false;
+  $('addRoleForm').style.display='none';$('addRoleBtn').classList.remove('active');
+  render();toast('已添加「'+name+'」');
+}
+function delRole(id){
+  const r=D.roles.find(x=>x.id===id);
+  if(!r||!confirm('删除角色「'+r.name+'」？该角色下所有任务也会删除'))return;
+  D.roles=D.roles.filter(x=>x.id!==id);
+  // remove tasks for this role
+  Object.keys(D.days).forEach(d=>{
+    D.days[d].tasks=D.days[d].tasks.filter(t=>t.roleId!==id);
+  });
+  save();render();
+}
+
+// === TASKS ===
+function addTask(roleId){
+  const input=$('taskInput_'+roleId);
+  const text=(input.value||'').trim();
+  if(!text)return;
+  const day=getDay(viewDate);
+  day.tasks.push({id:Date.now(),roleId,text,done:false});
+  save();input.value='';render();
+}
+function toggleTask(taskId){
+  const day=getDay(viewDate);
+  const t=day.tasks.find(x=>x.id===taskId);
+  if(t)t.done=!t.done;
+  save();render();
+}
+function delTask(taskId){
+  const day=getDay(viewDate);
+  day.tasks=day.tasks.filter(x=>x.id!==taskId);
+  save();render();
+}
+
+// === NOTE ===
+function saveNote(){
+  const day=getDay(viewDate);
+  day.note=$('noteArea').value;
+  save();
+}
+
+// === RENDER ===
+function render(){
+  const d=parseDate(viewDate);
+  const isT=isToday(viewDate);
+  $('dateMain').textContent=(d.getMonth()+1)+'月'+d.getDate()+'日';
+  $('dateSub').textContent=d.getFullYear()+'年 '+WEEKDAYS[d.getDay()]+(isT?' · 今天':'');
+
+  // greeting
+  if(isT){
+    const h=new Date().getHours();
+    let g='';
+    if(h<6)g='夜深了，还在忙？';
+    else if(h<9)g='早上好，新的一天开始了';
+    else if(h<12)g='上午好，状态怎么样？';
+    else if(h<14)g='中午好，吃饱了继续';
+    else if(h<18)g='下午好，保持节奏';
+    else g='晚上好，收尾一下今天的事';
+    $('greeting').innerHTML=g+'<br><b>今天最重要的事情是什么？</b>';
+    $('greeting').style.display='block';
+  }else{
+    $('greeting').style.display='none';
+  }
+
+  const day=getDay(viewDate);
+  const allTasks=day.tasks;
+  const doneCount=allTasks.filter(t=>t.done).length;
+  const totalCount=allTasks.length;
+
+  // progress
+  $('progLabel').textContent=isT?'今日进度':viewDate+' 进度';
+  $('progNum').textContent=doneCount+'/'+totalCount;
+  $('progFill').style.width=totalCount?((doneCount/totalCount*100)+'%'):'0';
+  if(totalCount===0)$('progMsg').textContent='还没有任务，先给自己安排几件事吧';
+  else if(doneCount===totalCount)$('progMsg').textContent='🎉 全部完成！今天赢了';
+  else if(doneCount/totalCount>=0.5)$('progMsg').textContent='过半了，继续保持';
+  else $('progMsg').textContent='加油，一件一件来';
+
+  // roles
+  let h='';
+  D.roles.forEach(r=>{
+    const tasks=allTasks.filter(t=>t.roleId===r.id);
+    const done=tasks.filter(t=>t.done).length;
+    h+='<div class="role">';
+    h+='<div class="role-head" style="border-left:3px solid '+r.color+'">';
+    h+='<span class="role-icon">'+r.icon+'</span>';
+    h+='<span class="role-name">'+esc(r.name)+'</span>';
+    if(tasks.length)h+='<span class="role-count">'+done+'/'+tasks.length+'</span>';
+    h+='<button class="task-del" onclick="event.stopPropagation();delRole('+r.id+')" style="opacity:.4;font-size:10px">删除</button>';
+    h+='</div>';
+    h+='<div class="role-body">';
+    tasks.forEach(t=>{
+      h+='<div class="task">';
+      h+='<div class="task-check'+(t.done?' done':'')+'" onclick="toggleTask('+t.id+')" style="'+(t.done?'background:'+r.color+';border-color:'+r.color:'border-color:'+r.color+'40')+'">'+(t.done?'✓':'')+'</div>';
+      h+='<span class="task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>';
+      h+='<button class="task-del" onclick="delTask('+t.id+')">✕</button>';
+      h+='</div>';
+    });
+    if(isT){
+      h+='<div class="add-task">';
+      h+='<input type="text" id="taskInput_'+r.id+'" placeholder="添加任务..." onkeydown="if(event.key===\'Enter\')addTask('+r.id+')">';
+      h+='<button onclick="addTask('+r.id+')">添加</button>';
+      h+='</div>';
+    }
+    h+='</div></div>';
+  });
+  $('roleList').innerHTML=h;
+
+  // note
+  $('noteArea').value=day.note||'';
+  $('noteArea').disabled=!isT;
+  $('noteArea').placeholder=isT?'今天感觉怎么样？随便写一句...':'（当天才能写）';
+}
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+function updateClock(){
+  const now=new Date();
+  $('clock').textContent=[now.getHours(),now.getMinutes(),now.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+}
+updateClock();setInterval(updateClock,1000);
+
+load();render();
+</script>
+</body>
+</html>
