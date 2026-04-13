@@ -189,7 +189,28 @@ function load(){
   }catch(e){D={roles:DEFAULT_ROLES.map(r=>({...r})),days:{}}}
 }
 function save(){try{localStorage.setItem(SK,JSON.stringify(D))}catch(e){}}
-function getDay(d){if(!D.days[d])D.days[d]={tasks:[],note:''};return D.days[d]}
+function getDay(d){
+  if(!D.days[d])D.days[d]={tasks:[],note:'',carried:false};
+  // 如果是今天，且还没执行过延续，把之前未完成的任务搬过来
+  if(d===todayStr()&&!D.days[d].carried){
+    const sorted=Object.keys(D.days).filter(k=>k<d).sort().reverse();
+    const carryTasks=[];
+    for(const prevKey of sorted){
+      const prev=D.days[prevKey];
+      prev.tasks.forEach(t=>{
+        if(!t.done&&!carryTasks.some(c=>c.text===t.text&&c.roleId===t.roleId)){
+          carryTasks.push({id:Date.now()+Math.random()*1000|0,roleId:t.roleId,text:t.text,done:false,from:prevKey});
+        }
+      });
+    }
+    if(carryTasks.length){
+      D.days[d].tasks=[...carryTasks,...D.days[d].tasks];
+    }
+    D.days[d].carried=true;
+    save();
+  }
+  return D.days[d];
+}
 
 function toast(msg){
   const t=$('toast');t.textContent=msg;t.classList.add('show');
@@ -312,6 +333,7 @@ function render(){
       h+='<div class="task">';
       h+='<div class="task-check'+(t.done?' done':'')+'" onclick="toggleTask('+t.id+')" style="'+(t.done?'background:'+r.color+';border-color:'+r.color:'border-color:'+r.color+'40')+'">'+(t.done?'✓':'')+'</div>';
       h+='<span class="task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>';
+      if(t.from)h+='<span style="font-size:9px;color:var(--ac);background:var(--acd);padding:1px 5px;border-radius:4px;white-space:nowrap">延续</span>';
       h+='<button class="task-del" onclick="delTask('+t.id+')">✕</button>';
       h+='</div>';
     });
