@@ -191,21 +191,37 @@ function load(){
 function save(){try{localStorage.setItem(SK,JSON.stringify(D))}catch(e){}}
 function getDay(d){
   if(!D.days[d])D.days[d]={tasks:[],note:'',carried:false};
-  // 如果是今天，且还没执行过延续，把之前未完成的任务搬过来
   if(d===todayStr()&&!D.days[d].carried){
-    const sorted=Object.keys(D.days).filter(k=>k<d).sort().reverse();
-    const carryTasks=[];
-    for(const prevKey of sorted){
-      const prev=D.days[prevKey];
-      prev.tasks.forEach(t=>{
-        if(!t.done&&!carryTasks.some(c=>c.text===t.text&&c.roleId===t.roleId)){
-          carryTasks.push({id:Date.now()+Math.random()*1000|0,roleId:t.roleId,text:t.text,done:false,from:prevKey});
+    // 收集所有历史天的任务，判断每个任务（按roleId+text）是否在任何一天被完成过
+    const allDayKeys=Object.keys(D.days).filter(k=>k<d).sort();
+    
+    // 先扫描所有历史：哪些任务（roleId::text）曾经被标记为done
+    const everDone=new Set();
+    allDayKeys.forEach(k=>{
+      D.days[k].tasks.forEach(t=>{
+        if(t.done) everDone.add(t.roleId+'::'+t.text);
+      });
+    });
+    
+    // 今天已经有的任务
+    const todayHas=new Set();
+    D.days[d].tasks.forEach(t=>todayHas.add(t.roleId+'::'+t.text));
+    
+    // 从最近的一天开始找未完成且从未被完成过的任务
+    const toCarry={};
+    for(let i=allDayKeys.length-1;i>=0;i--){
+      const dk=allDayKeys[i];
+      D.days[dk].tasks.forEach(t=>{
+        const key=t.roleId+'::'+t.text;
+        // 只延续：这个任务从未在任何一天完成过，且今天还没有，且还没收集过
+        if(!t.done&&!everDone.has(key)&&!todayHas.has(key)&&!toCarry[key]){
+          toCarry[key]={id:Date.now()+Math.random()*10000|0,roleId:t.roleId,text:t.text,done:false,from:dk};
         }
       });
     }
-    if(carryTasks.length){
-      D.days[d].tasks=[...carryTasks,...D.days[d].tasks];
-    }
+    
+    const carryTasks=Object.values(toCarry);
+    if(carryTasks.length) D.days[d].tasks=[...carryTasks,...D.days[d].tasks];
     D.days[d].carried=true;
     save();
   }
@@ -263,7 +279,20 @@ function addTask(roleId){
 function toggleTask(taskId){
   const day=getDay(viewDate);
   const t=day.tasks.find(x=>x.id===taskId);
-  if(t)t.done=!t.done;
+  if(!t)return;
+  t.done=!t.done;
+  // 如果是延续任务被完成，把所有历史天里相同任务也标记为done
+  if(t.done){
+    const key=t.roleId+'::'+t.text;
+    Object.keys(D.days).forEach(dk=>{
+      if(dk===viewDate)return;
+      D.days[dk].tasks.forEach(ht=>{
+        if(ht.roleId+'::'+ht.text===key&&!ht.done){
+          ht.done=true;
+        }
+      });
+    });
+  }
   save();render();
 }
 function delTask(taskId){
