@@ -95,6 +95,15 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--ac)}
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--tx);color:var(--bg);padding:8px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:200;transition:.3s;pointer-events:none;opacity:0}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
+/* routine */
+.routine-item{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--sf2);border-radius:8px;margin-bottom:4px;font-size:12px}
+.routine-item .r-text{flex:1}
+.routine-item .r-freq{color:var(--tx2);font-size:10px;background:var(--sf);padding:2px 6px;border-radius:4px}
+.routine-item .r-del{width:20px;height:20px;border:none;background:none;color:var(--tx3);cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center}
+.routine-item .r-del:hover{color:var(--ac);background:var(--acd)}
+.wday-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);background:var(--sf);color:var(--tx2);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.wday-btn.sel{background:var(--ac);color:#fff;border-color:var(--ac)}
+
 /* empty day */
 .empty-day{text-align:center;padding:30px;color:var(--tx3);font-size:13px;line-height:1.8}
 
@@ -133,6 +142,7 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--ac)}
   <!-- MANAGE BAR -->
   <div class="manage-bar">
     <button class="mg-btn" id="addRoleBtn" onclick="toggleAddRole()">+ 添加角色</button>
+    <button class="mg-btn" id="routineBtn" onclick="toggleRoutinePanel()">🔁 固定事项</button>
   </div>
 
   <!-- ADD ROLE FORM -->
@@ -144,6 +154,29 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--ac)}
     <div style="display:flex;gap:6px;align-items:center">
       <input type="text" class="add-task" id="roleNameInput" placeholder="角色名称" style="flex:1;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--sf2);color:var(--tx);font-size:13px">
       <button onclick="addRole()" style="padding:7px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap">添加</button>
+    </div>
+  </div>
+
+  <!-- ROUTINE PANEL -->
+  <div id="routinePanel" style="display:none;background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      🔁 固定事项
+      <span style="font-size:11px;color:var(--tx2);font-weight:400">自动出现在对应日期</span>
+    </div>
+    <div id="routineList" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+      <input type="text" id="rText" placeholder="事项内容" class="add-task" style="flex:2;min-width:100px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--sf2);color:var(--tx);font-size:13px">
+      <select id="rRole" style="flex:1;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--sf2);color:var(--tx);font-size:13px"></select>
+    </div>
+    <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+      <select id="rFreq" onchange="onFreqChange()" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--sf2);color:var(--tx);font-size:13px">
+        <option value="daily">每天</option>
+        <option value="weekday">工作日</option>
+        <option value="weekend">周末</option>
+        <option value="weekly">每周指定</option>
+      </select>
+      <div id="weekdayPicker" style="display:none;gap:3px;flex-wrap:wrap"></div>
+      <button onclick="addRoutine()" style="padding:7px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap;margin-left:auto">添加</button>
     </div>
   </div>
 
@@ -171,7 +204,7 @@ const DEFAULT_ROLES=[
   {id:4,name:'生活',icon:'🏠',color:'#8b6caf'}
 ];
 
-let D={roles:[],days:{}};
+let D={roles:[],days:{},recurring:[]};
 let viewDate=todayStr();
 let selEmoji=EMOJIS[0],selColor=COLORS[0],showRoleForm=false;
 
@@ -184,44 +217,58 @@ function isToday(s){return s===todayStr()}
 function load(){
   try{
     const s=localStorage.getItem(SK);
-    if(s){D=JSON.parse(s)}
-    else{D={roles:DEFAULT_ROLES.map(r=>({...r})),days:{}};save()}
-  }catch(e){D={roles:DEFAULT_ROLES.map(r=>({...r})),days:{}}}
+    if(s){D=JSON.parse(s);if(!D.recurring)D.recurring=[]}
+    else{D={roles:DEFAULT_ROLES.map(r=>({...r})),days:{},recurring:[]};save()}
+  }catch(e){D={roles:DEFAULT_ROLES.map(r=>({...r})),days:{},recurring:[]}}
 }
 function save(){try{localStorage.setItem(SK,JSON.stringify(D))}catch(e){}}
 function getDay(d){
   if(!D.days[d])D.days[d]={tasks:[],note:'',carried:false};
+
+  // 注入循环任务（每次渲染时检查，避免重复）
+  const dayDate=parseDate(d);
+  const dayOfWeek=dayDate.getDay(); // 0=周日
+  const existKeys=new Set(D.days[d].tasks.map(t=>t.roleId+'::'+t.text));
+  let injected=false;
+  (D.recurring||[]).forEach(r=>{
+    const key=r.roleId+'::'+r.text;
+    if(existKeys.has(key))return; // 已经存在
+    let match=false;
+    if(r.freq==='daily')match=true;
+    else if(r.freq==='weekday')match=dayOfWeek>=1&&dayOfWeek<=5;
+    else if(r.freq==='weekend')match=dayOfWeek===0||dayOfWeek===6;
+    else if(r.freq==='weekly')match=dayOfWeek===r.weekday;
+    else if(r.freq==='custom')match=(r.customDays||[]).includes(dayOfWeek);
+    if(match){
+      D.days[d].tasks.push({id:Date.now()+Math.random()*10000|0,roleId:r.roleId,text:r.text,done:false,recurring:true});
+      existKeys.add(key);
+      injected=true;
+    }
+  });
+  if(injected)save();
+
+  // 延续未完成任务（仅今天）
   if(d===todayStr()&&!D.days[d].carried){
-    // 收集所有历史天的任务，判断每个任务（按roleId+text）是否在任何一天被完成过
     const allDayKeys=Object.keys(D.days).filter(k=>k<d).sort();
-    
-    // 先扫描所有历史：哪些任务（roleId::text）曾经被标记为done
     const everDone=new Set();
     allDayKeys.forEach(k=>{
       D.days[k].tasks.forEach(t=>{
-        if(t.done) everDone.add(t.roleId+'::'+t.text);
+        if(t.done)everDone.add(t.roleId+'::'+t.text);
       });
     });
-    
-    // 今天已经有的任务
-    const todayHas=new Set();
-    D.days[d].tasks.forEach(t=>todayHas.add(t.roleId+'::'+t.text));
-    
-    // 从最近的一天开始找未完成且从未被完成过的任务
+    const todayHas=new Set(D.days[d].tasks.map(t=>t.roleId+'::'+t.text));
     const toCarry={};
     for(let i=allDayKeys.length-1;i>=0;i--){
       const dk=allDayKeys[i];
       D.days[dk].tasks.forEach(t=>{
         const key=t.roleId+'::'+t.text;
-        // 只延续：这个任务从未在任何一天完成过，且今天还没有，且还没收集过
-        if(!t.done&&!everDone.has(key)&&!todayHas.has(key)&&!toCarry[key]){
+        if(!t.done&&!t.recurring&&!everDone.has(key)&&!todayHas.has(key)&&!toCarry[key]){
           toCarry[key]={id:Date.now()+Math.random()*10000|0,roleId:t.roleId,text:t.text,done:false,from:dk};
         }
       });
     }
-    
     const carryTasks=Object.values(toCarry);
-    if(carryTasks.length) D.days[d].tasks=[...carryTasks,...D.days[d].tasks];
+    if(carryTasks.length)D.days[d].tasks=[...carryTasks,...D.days[d].tasks];
     D.days[d].carried=true;
     save();
   }
@@ -281,13 +328,14 @@ function toggleTask(taskId){
   const t=day.tasks.find(x=>x.id===taskId);
   if(!t)return;
   t.done=!t.done;
-  // 如果是延续任务被完成，把所有历史天里相同任务也标记为done
-  if(t.done){
+  // 只有延续任务被完成时，才把历史天里同名未完成任务也标记done（防止再次延续）
+  // 循环任务每天独立，不连带
+  if(t.done&&t.from&&!t.recurring){
     const key=t.roleId+'::'+t.text;
     Object.keys(D.days).forEach(dk=>{
       if(dk===viewDate)return;
       D.days[dk].tasks.forEach(ht=>{
-        if(ht.roleId+'::'+ht.text===key&&!ht.done){
+        if(!ht.recurring&&ht.roleId+'::'+ht.text===key&&!ht.done){
           ht.done=true;
         }
       });
@@ -306,6 +354,82 @@ function saveNote(){
   const day=getDay(viewDate);
   day.note=$('noteArea').value;
   save();
+}
+
+// === ROUTINES ===
+let showRoutine=false;
+let selWeekdays=[];
+
+function toggleRoutinePanel(){
+  showRoutine=!showRoutine;
+  $('routinePanel').style.display=showRoutine?'block':'none';
+  $('routineBtn').classList.toggle('active',showRoutine);
+  if(showRoutine){renderRoutines();refreshRoleSelect();onFreqChange()}
+}
+function refreshRoleSelect(){
+  const sel=$('rRole');
+  sel.innerHTML=D.roles.map(r=>'<option value="'+r.id+'">'+r.icon+' '+esc(r.name)+'</option>').join('');
+}
+function onFreqChange(){
+  const f=$('rFreq').value;
+  const wp=$('weekdayPicker');
+  if(f==='weekly'){
+    wp.style.display='flex';
+    wp.innerHTML=['一','二','三','四','五','六','日'].map((name,i)=>{
+      const dayIdx=[1,2,3,4,5,6,0][i];
+      const sel=selWeekdays.includes(dayIdx);
+      return '<button class="wday-btn'+(sel?' sel':'')+'" onclick="toggleWeekday('+dayIdx+')">'+name+'</button>';
+    }).join('');
+  }else{
+    wp.style.display='none';
+  }
+}
+function toggleWeekday(d){
+  const idx=selWeekdays.indexOf(d);
+  if(idx>=0)selWeekdays.splice(idx,1);else selWeekdays.push(d);
+  onFreqChange();
+}
+
+function addRoutine(){
+  const text=$('rText').value.trim();
+  const roleId=parseInt($('rRole').value);
+  const freq=$('rFreq').value;
+  if(!text){toast('请输入事项内容');return}
+  if(!roleId){toast('请选择角色');return}
+  const routine={id:Date.now(),text,roleId,freq};
+  if(freq==='weekly'){
+    if(!selWeekdays.length){toast('请选择星期几');return}
+    routine.customDays=[...selWeekdays];
+    routine.freq='custom';
+  }
+  D.recurring.push(routine);
+  save();$('rText').value='';selWeekdays=[];
+  renderRoutines();onFreqChange();render();
+  toast('已添加固定事项');
+}
+function delRoutine(id){
+  D.recurring=D.recurring.filter(x=>x.id!==id);
+  save();renderRoutines();render();
+}
+
+function freqLabel(r){
+  if(r.freq==='daily')return '每天';
+  if(r.freq==='weekday')return '工作日';
+  if(r.freq==='weekend')return '周末';
+  if(r.freq==='custom'){
+    const names=['日','一','二','三','四','五','六'];
+    return '每周'+r.customDays.map(d=>names[d]).join('、');
+  }
+  return r.freq;
+}
+
+function renderRoutines(){
+  const el=$('routineList');
+  if(!D.recurring.length){el.innerHTML='<div style="text-align:center;padding:10px;color:var(--tx3);font-size:12px">还没有固定事项</div>';return}
+  el.innerHTML=D.recurring.map(r=>{
+    const role=D.roles.find(x=>x.id===r.roleId);
+    return '<div class="routine-item"><span style="font-size:14px">'+(role?role.icon:'📌')+'</span><span class="r-text">'+esc(r.text)+'</span><span class="r-freq">'+freqLabel(r)+'</span><button class="r-del" onclick="delRoutine('+r.id+')">✕</button></div>';
+  }).join('');
 }
 
 // === RENDER ===
@@ -363,6 +487,7 @@ function render(){
       h+='<div class="task-check'+(t.done?' done':'')+'" onclick="toggleTask('+t.id+')" style="'+(t.done?'background:'+r.color+';border-color:'+r.color:'border-color:'+r.color+'40')+'">'+(t.done?'✓':'')+'</div>';
       h+='<span class="task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>';
       if(t.from)h+='<span style="font-size:9px;color:var(--ac);background:var(--acd);padding:1px 5px;border-radius:4px;white-space:nowrap">延续</span>';
+      if(t.recurring)h+='<span style="font-size:9px;color:#8b6caf;background:rgba(139,108,175,.1);padding:1px 5px;border-radius:4px;white-space:nowrap">🔁 固定</span>';
       h+='<button class="task-del" onclick="delTask('+t.id+')">✕</button>';
       h+='</div>';
     });
